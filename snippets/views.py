@@ -4,16 +4,17 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from snipboxconfig.pagination_config import SnippetPagination
 from snipboxconfig.permissions import IsOwner
 
 from .models import Snippet, Tag
-from .serializers import SnippetSerializer
+from .serializers import SnippetOverviewSerializer, SnippetSerializer, TagSerializer
 
 
 class SnippetListCreateAPI(generics.ListCreateAPIView):
     """
     API view to list and create snippets for the authenticated user.
-    GET: List all snippets created by the authenticated user.
+    GET: List all snippets created in the system irrspective of the user.
     POST: Create a new snippet for the authenticated user. 
     The request body should include 'title', 'note', and optionally 'tags' (list of tag IDs).
     """
@@ -21,9 +22,19 @@ class SnippetListCreateAPI(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     http_method_names = ["get", "post"]
 
+    def get_serializer_class(self):
+        """
+        Use SnippetOverviewSerializer for GET requests to provide a summary view, 
+        and SnippetSerializer for POST requests.
+        """
+        if self.request.method == "GET":
+            return SnippetOverviewSerializer
+        return super().get_serializer_class()
+
     def get_queryset(self):
-        """Override to return only snippets created by the authenticated user."""
-        return Snippet.objects.filter(created_by=self.request.user)
+        return Snippet.objects.all()
+        # Override to return only snippets created by the authenticated user.
+        # return Snippet.objects.filter(created_by=self.request.user)
    
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
@@ -105,3 +116,43 @@ class SnippetBulkDeleteAPI(APIView):
             "message": "Selected snippets deleted",
             "remaining_snippets": serializer.data
         })
+    
+
+class TagListAPI(generics.ListAPIView):
+    """
+    API view to list all tags. 
+    GET: List all tags available in the system.
+    """
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class TagDetailAPI(generics.RetrieveAPIView):
+    """
+    API view to retrieve details of a specific tag by ID, including associated snippets.
+    GET: Retrieve the details of a specific tag, including a list of snippets associated with that tag. 
+    Only authenticated users can access.
+    The response includes the tag title and a list of snippets (title and detail URL) that have this tag.
+    """
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    pagination_class = SnippetPagination
+    permission_classes = [IsAuthenticated]
+
+
+    def retrieve(self, request, *args, **kwargs):
+        tag = self.get_object()
+
+        snippets = tag.snippet_set.filter(
+            created_by=request.user
+        ).order_by("-created_at")
+
+        page = self.paginate_queryset(snippets)
+
+        if page is not None:
+            serializer = SnippetSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = SnippetSerializer(snippets, many=True)
+        return Response(serializer.data)
