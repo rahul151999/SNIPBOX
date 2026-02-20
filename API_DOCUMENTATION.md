@@ -142,6 +142,72 @@ If not → created automatically
 }
 
 ---
+3️⃣ Retrieve Snippet
+
+GET /snippet/<id>
+
+Returns snippet details.
+---
+
+4️⃣ Update Snippet
+
+PUT /snippet/<id>
+
+Body
+
+{
+  "title": "Updated",
+  "note": "Updated text",
+  "tags": ["Work"]
+}
+
+Returns updated snippet object.
+---
+
+5️⃣ Delete Single Snippet
+
+DELETE /snippet/<id>
+
+Deletes snippet and returns remaining snippets list.
+
+Response
+
+[
+  {
+    "id": 2,
+    "title": "Note",
+    "note": "Hello"
+  }
+]
+
+---
+
+6️⃣ Bulk Delete Snippets
+
+DELETE /snippets/delete/
+
+Deletes multiple snippets belonging to logged-in user.
+
+Body
+
+{
+  "ids": [1,2,3]
+}
+
+Response
+
+{
+  "message": "Selected snippets deleted",
+  "remaining_snippets": [...]
+}
+
+Validation Error
+
+{
+  "error": "No IDs provided"
+}
+
+---
 
 # 👨‍💻 Author
 
